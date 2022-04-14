@@ -14,14 +14,10 @@ extern int idalloc(int dev, int ino);
 extern int n;
 extern char *name[64];
 
-/*****************************************************
-*
-*  Name:    unlink_pathname
-*  
-*  Details: verifies that pathname given for unlink is 
-*           valid, then does unlink implementation
-* 
-*****************************************************/
+/*
+	Name:    unlink_pathname
+	Details: verifies that pathname given for unlink is valid, then does unlink implementation
+*/
 int unlink_pathname(char* pathname){
     int ino, pino;
     MINODE* mip, *pmip;
@@ -115,15 +111,10 @@ int unlink_pathname(char* pathname){
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    link_pathname
-*  
-*  Details: verifies that pathname given for link is 
-*           valid, then prepares variables for my_link 
-*           call
-* 
-*****************************************************/
+/*
+	Name:    link_pathname 
+	Details: verifies that pathname given for link is valid, then prepares variables for my_link call
+*/
 int link_pathname(char* pathname){
 
     int oino, pino;
@@ -231,15 +222,10 @@ int link_pathname(char* pathname){
 
 }
 
-/*****************************************************
-*
-*  Name:    my link
-*  
-*  Details: Takes a parent directory, and makes a 
-*           new link connected by the given inode, 
-*           and then puts in that parent directory.
-* 
-*****************************************************/
+/*
+        Name:    my link
+	Details: Takes a parent directory, and makes a new link connected by the given inode,and then puts in that parent directory.
+*/
 int my_link(MINODE* pmip, int oino, char* _basename){
     return enter_name(pmip, oino, _basename);
 }

@@ -5,15 +5,11 @@ extern int findino(MINODE *mip, u32 *myino);
 extern int getino(char *pathname);
 extern int findmyname(MINODE *parent, u32 myino, char myname[ ]);
 extern int is_dir(MINODE* mip);
-//***********************************************
 
-/*****************************************************
-*
-*  Name:    cd
-*  
-*  Details: changes working directory to thaty of pathnamwe
-* 
-*****************************************************/
+/*
+  Name:    cd
+  Details: changes working directory to thaty of pathnamwe
+*/
 int cd(char *pathname)
 {
   //printf("cd: under construction READ textbook!!!!\n");
@@ -33,20 +29,17 @@ int cd(char *pathname)
   }
 
 
-  iput(running->cwd);           // one less reference to old cwd
+  iput(running->cwd);  // one less reference to old cwd
   running->cwd = mip; //finalize directory change
 
   return 0;
 
 }
 
-/*****************************************************
-*
-*  Name:    ls_file
-*  
-*  Details: print ls line for given file
-* 
-*****************************************************/
+/*
+ Name:    ls_file
+ Details: print ls line for given file
+*/
 int ls_file(MINODE *mip, char *name)
 {
   //printf("ls_file: to be done: READ textbook!!!!\n");
@@ -105,7 +98,7 @@ int ls_file(MINODE *mip, char *name)
   //print owner uid
   printf("   %d", uid);
 
-  //print gruop id
+  //print group id
   printf("   %d", gid);
 
   // print time in calendar form   
@@ -123,13 +116,10 @@ int ls_file(MINODE *mip, char *name)
   return 0;
 }
 
-/*****************************************************
-*
-*  Name:    ls_dir
-*  
-*  Details: list content of directory
-* 
-*****************************************************/
+/*
+  Name:    ls_dir
+  Details: list content of directory
+*/
 int ls_dir(MINODE *mip)
 {
   //printf("ls_dir: list CWD's file names; YOU FINISH IT as ls -l\n");
@@ -161,13 +151,10 @@ int ls_dir(MINODE *mip)
   printf("\n");
 }
 
-/*****************************************************
-*
-*  Name:    ls
-*  
-*  Details: Runs the ls shell command
-* 
-*****************************************************/
+/*
+  Name:    ls
+  Details: Runs the ls shell command
+*/
 int ls(char* pathname)
 {
   //printf("ls: list CWD only! YOU FINISH IT for ls pathname\n");
@@ -199,15 +186,10 @@ int ls(char* pathname)
   
 }
 
-/*****************************************************
-*
-*  Name:    pwd
-*  
-*  Details: Runs the pwd shell command. Recursive 
-*           function that works its way up to the root 
-*           printing the current dir along the way
-* 
-*****************************************************/
+/*
+   Name:    pwd
+   Details: Runs the pwd shell command. Recursivefunction that works its way up to the root printing the current dir along the way
+*/
 char *pwd(MINODE *wd)
 {
 

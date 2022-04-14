@@ -24,13 +24,10 @@ extern int n;
 extern char *name[64];
 extern int nblocks, ninodes, bmap, imap;
 
-/*****************************************************
-*
-*  Name:    is_dir
-*  
-*  Details: Returns 0 if mip is a directory
-*
-*****************************************************/
+/*
+ Name:    is_dir
+ Details: Returns 0 if mip is a directory
+*/
 int is_dir(MINODE* mip){
   // CHECK IF mip IS A DIRECTORY ***************************
   INODE f_inode;
@@ -65,14 +62,10 @@ int is_dir(MINODE* mip){
   return 0;
 }
 
-/*****************************************************
-*
-*  Name:    ialloc
-*  
-*  Details: Goes the the inode bitmap block and 
-*           allocates a new inode for use
-*
-*****************************************************/
+/*
+  Name:    ialloc
+  Details: Goes the the inode bitmap block and allocates a new inode for use
+*/
 int ialloc(int dev)  // allocate an inode number from inode_bitmap
 {
   int  i;
@@ -92,14 +85,10 @@ int ialloc(int dev)  // allocate an inode number from inode_bitmap
   return 0;
 }
 
-/*****************************************************
-*
-*  Name:    balloc
-*  
-*  Details: Goes the the block bitmap block and allocates 
-*           a new block in the disk for use.
-*
-*****************************************************/
+/*
+ Name:    balloc
+ Details: Goes the the block bitmap block and allocates a new block in the disk for use.
+*/
 int balloc(int dev){ //same as ialloc but for the block bitmap
 
   int  i;
@@ -120,14 +109,10 @@ int balloc(int dev){ //same as ialloc but for the block bitmap
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    test bit
-*  
-*  Details: Returns the bit at that point in the block 
-*           (1 or 0)
-*
-*****************************************************/
+/*
+ Name:    test bit
+ Details: Returns the bit at that point in the block (1 or 0)
+*/
 int tst_bit(char *buf, int bit){ // in Chapter 11.3.1
 
     int i,j;
@@ -152,14 +137,10 @@ int tst_bit(char *buf, int bit){ // in Chapter 11.3.1
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    set bit
-*  
-*  Details: Sets the bit at that location in the 
-*           block to a 1
-*
-*****************************************************/
+/*
+ Name:    set bit
+ Details: Sets the bit at that location in the block to a 1
+*/
 int set_bit(char *buf, int bit){ // in Chapter 11.3.1
 
     int i,j;
@@ -184,15 +165,10 @@ int set_bit(char *buf, int bit){ // in Chapter 11.3.1
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    creat_pathname
-*  
-*  Details: Takes a given pathname, and makes sure 
-*           that it can be used to creat a new file. 
-*           If all checks are made, my_creat is called.
-* 
-*****************************************************/
+/*
+ Name:    creat_pathname
+ Details: Takes a given pathname, and makes sure that it can be used to creat a new file.If all checks are made, my_creat is called.
+*/
 int creat_pathname(char* pathname){
 
     //divide pathname into dirname and basename
@@ -264,15 +240,10 @@ int creat_pathname(char* pathname){
     return my_creat(pmip, _basename);
 }
 
-/*****************************************************
-*
-*  Name:    my_creat
-*  
-*  Details: Takes a parent directory and creates a 
-*           new file with the given basename, puts
-*           in the parent directory
-* 
-*****************************************************/
+/*
+ Name:    my_creat
+ Details: Takes a parent directory and creates a new file with the given basename, puts in the parent directory
+*/
 int my_creat(MINODE* pmip, char* _basename){
 
     int ino;
@@ -295,15 +266,10 @@ int my_creat(MINODE* pmip, char* _basename){
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    mkdir pathname
-*  
-*  Details: Determines if mkdir works for the given 
-*           pathname. If there is no repeated basenames
-*           and the dirname is valid call my_mkdir
-*
-*****************************************************/
+/*
+ Name:    mkdir pathname
+ Details: Determines if mkdir works for the given pathname. If there is no repeated basenames and the dirname is valid call my_mkdir
+*/
 int mkdir_pathname(char* pathname){
 
     //divide pathname into dirname and basename
@@ -369,16 +335,10 @@ int mkdir_pathname(char* pathname){
     return my_mkdir(pmip, _basename); 
 }
 
-/*****************************************************
-*
-*  Name:    my mkdir
-*  
-*  Details: The main mkdir function. Runs the mkdir 
-*           command in the parent directory (pmip), 
-*           initialzes the inodes and sets the dir 
-*           entries
-*
-*****************************************************/
+/*
+ Name:    my mkdir
+ Details: The main mkdir function. Runs the mkdir command in the parent directory (pmip), initialzes the inodes and sets the dir entries
+*/
 int my_mkdir(MINODE* pmip, char* _basename){
     int ino, blk;
     MINODE* mip;
@@ -407,15 +367,10 @@ int my_mkdir(MINODE* pmip, char* _basename){
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    init dir
-*  
-*  Details: Sets the basic dir entries for a new 
-*           directory, that being the . and .. directory 
-*           paths
-*
-*****************************************************/
+/*
+ Name:    init dir
+ Details: Sets the basic dir entries for a new directory, that being the . and .. directory paths
+*/
 int init_dir(int dblk, int pino, int ino){ //based on pg 332
 
     char buf[BLKSIZE];
@@ -446,17 +401,10 @@ int init_dir(int dblk, int pino, int ino){ //based on pg 332
 
 }
 
-/*****************************************************
-*
-*  Name:    enter name
-*  
-*  Details: Adds the new directory to the parent 
-*           directory's data block. Trims the last dir 
-*           entry, and either adds the new dir entry to 
-*           the last data block or to a new one if there 
-*           is no more room in the current data block
-*
-*****************************************************/
+/*
+ Name:    enter name
+ Details: Adds the new directory to the parent directory's data block. Trims the last dir entry, and either adds the new dir entry to the last data block or to a new one if there is no more room in the current data block
+*/
 int enter_name(MINODE* pip, int ino, char* name){
 
    INODE inode;
@@ -541,15 +489,10 @@ int enter_name(MINODE* pip, int ino, char* name){
 
 }
 
-/*****************************************************
-*
-*  Name:    create inode
-*  
-*  Details: initilizes inode ip as a directory, bno the 
-*           is the first data black in i_blocks. It is 
-*           allocated before-hand
-*
-*****************************************************/
+/*
+ Name:    create inode
+ Details: initilizes inode ip as a directory, bno the is the first data black in i_blocks. It is allocated before-hand
+*/
 int create_inode(INODE* ip, int bno){ //from book pg 334
   
    if(!bno){ //if 0 must be reg type

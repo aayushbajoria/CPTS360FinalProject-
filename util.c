@@ -35,45 +35,30 @@ extern int nblocks, ninodes, bmap, imap, iblk;
 
 extern char line[128], cmd[32], pathname[128];
 
-/*****************************************************
-*
-*  Name:    Get Block
-*  
-*  Details: Dev is the disk, this function gets the 
-*           block indicated by (int blk) and puts 
-*           that block info into buf 
-*
-*****************************************************/
+/*
+ Name:    Get Block
+ Details: Dev is the disk, this function gets the block indicated by (int blk) and puts that block info into buf 
+ */
 int get_block(int dev, int blk, char *buf)
 {
    lseek(dev, (long)blk*BLKSIZE, 0); // move dev to read at block nunber: (blk)
    read(dev, buf, BLKSIZE);          // reads block content into buf
 }   
 
-/*****************************************************
-*
-*  Name:    Put Block
-*  
-*  Details: Dev is the disk, this function gets the 
-*           block indicated by (int blk) and overwrites
-*           it with buf
-*
-*****************************************************/
+/*
+ Name:    Put Block
+ Details: Dev is the disk, this function gets the block indicated by (int blk) and overwrites it with buf
+*/
 int put_block(int dev, int blk, char *buf)
 {
    lseek(dev, (long)blk*BLKSIZE, 0);
    write(dev, buf, BLKSIZE);
 }   
 
-/*****************************************************
-*
-*  Name:    tokenize
-*  
-*  Details: Seperates a pathname into its individual 
-*           directory name components and puts it in 
-*           the list name, N becomes the number of tokens.
-*
-*****************************************************/
+/*
+ Name:    tokenize
+ Details: Seperates a pathname into its individual directory name components and puts it in the list name, N becomes the number of tokens.
+*/
 int tokenize(char *pathname)
 {
   int i;
@@ -96,13 +81,10 @@ int tokenize(char *pathname)
   printf("\n");
 }
 
-/*****************************************************
-*
-*  Name:    iget
-*  
-*  Details: Creates new minode with specified inode number
-*
-*****************************************************/
+/*
+ Name:    iget
+ Details: Creates new minode with specified inode number
+*/
 MINODE *iget(int dev, int ino)
 {
   int i;
@@ -147,14 +129,10 @@ MINODE *iget(int dev, int ino)
   return 0;
 }
 
-/*****************************************************
-*
-*  Name:    iput
-*  
-*  Details: Writes mip's inode back to the disk and 
-*           deallocates the minode
-*
-*****************************************************/
+/*
+ Name:    iput
+ Details: Writes mip's inode back to the disk and deallocates the minode
+*/
 void iput(MINODE *mip)
 {
  int i, block, offset;
@@ -191,16 +169,10 @@ void iput(MINODE *mip)
    
 } 
 
-/*****************************************************
-*
-*  Name:    search
-*  
-*  Details: mip is a directory. Search looks through 
-*           the contents of that directory, and if it 
-*           has a file with the specified name, return 
-*           that files inode.
-*
-*****************************************************/
+/*
+ Name:    search
+ Details: mip is a directory. Search looks through the contents of that directory, and if it has a file with the specified name, return that files inode.
+*/
 int search(MINODE *mip, char *name)
 {
    int i; 
@@ -240,14 +212,10 @@ int search(MINODE *mip, char *name)
    return 0; //dir name wasn't in directory
 }
 
-/*****************************************************
-*
-*  Name:    get ino
-*  
-*  Details: takes a pathname and returns the inode number 
-*           for the last file in the path
-*
-*****************************************************/
+/*
+ Name:    get ino
+ Details: takes a pathname and returns the inode number for the last file in the path
+*/
 int getino(char *pathname)
 {
   int i, ino, blk, offset;
@@ -296,14 +264,11 @@ int getino(char *pathname)
 
 // These 2 functions are needed for pwd()
 
-/*****************************************************
-*
-*  Name:    findmyname
-*  
-*  Details: Gets the name of the file with the given inode number. 
+/*
+ Name:    findmyname
+ Details: Gets the name of the file with the given inode number. 
 *           The file must be a child of the parent directory.
-*
-*****************************************************/
+*/
 int findmyname(MINODE *parent, u32 myino, char myname[ ]) 
 {
   // WRITE YOUR code here
@@ -340,15 +305,10 @@ int findmyname(MINODE *parent, u32 myino, char myname[ ])
 
 }
 
-/*****************************************************
-*
-*  Name:    findino
-*  
-*  Details: mip is a directory, myino is changed to 
-*           the . directory inode number. 
-*           The .. directory inode number is returned.
-*
-*****************************************************/
+/*
+ Name:    findino
+ Details: mip is a directory, myino is changed to the . directory inode number. The .. directory inode number is returned.
+*/
 int findino(MINODE *mip, u32 *myino) // myino = i# of . return i# of ..
 {
   // mip points at a DIR minode

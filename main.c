@@ -40,13 +40,10 @@ char line[128], cmd[32], pathname[128];
 #include "symlink.c"
 
 
-/*****************************************************
-*
-*  Name:    Init
-*  
-*  Details: Sets all global minode stuff and processes
-*           to 0.
-*****************************************************/
+/*
+ Name:    Init
+ Details: Sets all global minode stuff and processes to 0.
+*/
 int init()
 {
   int i, j;
@@ -73,13 +70,10 @@ int init()
   }
 }
 
-/*****************************************************
-*
-*  Name:    mount root
-*  
-*  Details: load root INODE and set root pointer to it
-*
-*****************************************************/
+/*
+	Name:    mount root
+	Details: load root INODE and set root pointer to it
+*/
 int mount_root()
 {  
   printf("mount_root()\n");
@@ -87,13 +81,10 @@ int mount_root()
 }
 
 char *disk = "diskimage";
-/*****************************************************
-*
-*  Name:    Main
-*  
-*  Details: Runs Project
-* 
-*****************************************************/
+/* 
+	Name:    Main
+	Details: Runs Project
+*/
 int main(int argc, char *argv[ ])
 {
   int ino;
@@ -187,16 +178,10 @@ int main(int argc, char *argv[ ])
   }
 }
 
-/*****************************************************
-*
-*  Name:    add_second_pathname
-*  
-*  Details: If a given command requires 
-*           a second parameter, adds it to pathname 
-*           which originally only have the first 
-*           parameter
-* 
-*****************************************************/
+/*
+	Name:    add_second_pathname
+	Details: If a given command requires a second parameter, adds it to pathname which originally only have the first parameter
+*/
 int add_second_pathname(char line[]){
     int start_of_second_path;
     char second_path[128];
@@ -216,14 +201,10 @@ int add_second_pathname(char line[]){
     return 0;
 }
 
-/*****************************************************
-*
-*  Name:    quit
-*   Wang
-*  Details: Kills project, and deallocates 
-*           dynamic variables
-* 
-*****************************************************/
+/*
+	Name:    quit
+	Details: Kills project, and deallocates dynamic variables
+*/
 int quit()
 {
   int i;
