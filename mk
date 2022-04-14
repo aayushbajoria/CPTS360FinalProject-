@@ -1,8 +1,8 @@
-#! /bin/bash
 rm a.out 2> /dev/null
 
-gcc *.c
+gcc main.c util.c
 
-# ./a.out
+./mkdisk
+./a.out
 
 

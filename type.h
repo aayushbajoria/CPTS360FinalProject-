@@ -1,8 +1,4 @@
 /*************** type.h file for LEVEL-1 ****************/
-#ifndef TYPE
-#define TYPE
-#include <ext2fs/ext2_fs.h>
-
 typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
@@ -24,6 +20,7 @@ DIR   *dp;
 #define NMINODE   128
 #define NPROC       2
 
+// MEMORY INODE
 typedef struct minode{
   INODE INODE;           // INODE structure on disk
   int dev, ino;          // (dev, ino) of INODE
@@ -34,13 +31,12 @@ typedef struct minode{
   struct mntable *mptr;  // for level-3
 }MINODE;
 
+
 typedef struct proc{
   struct proc *next;
   int          pid;      // process ID  
   int          uid;      // user ID
   int          gid;
+  int       status;
   MINODE      *cwd;      // CWD directory pointer  
 }PROC;
-
-
-#endif
