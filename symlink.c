@@ -11,8 +11,8 @@ extern int my_creat(MINODE* pmip, char* _basename);
 extern int balloc(int dev); //same as ialloc but for the block bitmap
 
 /*
- Name:    symlink_pathname
- Details: Runs checks to make sure symlink can be called on the given pathname, if its safe, runs symlink function
+   Name:    symlink_pathname
+   Details: Runs checks to make sure symlink can be called on the given pathname, if its safe,runs symlink function
 */
 int symlink_pathname(char* pathname){
 
@@ -90,8 +90,8 @@ int symlink_pathname(char* pathname){
 }
 
 /*
- Name:    my_symlink
- Details: Makes a lnk file in the given directory, which will hold the name of the old file
+  Name:    my_symlink
+  Details: Makes a lnk file in the given directory, which will hold the name of the old file
 */
 int my_symlink(MINODE* pmip, char* old_name, char* _basename){
     if(my_creat(pmip, _basename)){ //creat file with basename (i_mode will be changed later)
@@ -133,8 +133,8 @@ int my_symlink(MINODE* pmip, char* old_name, char* _basename){
 }
 
 /*
- Name:    call_readlink
- Details: Prints the readlink results from a given pathname
+  Name:    call_readlink
+  Details: Prints the readlink results from a given pathname
 */
 int call_readlink(char* pathname){
 
@@ -153,9 +153,9 @@ int call_readlink(char* pathname){
 
 }
 
-/*
- Name:    readlink
- Details: Returns the name inside the link file's data block, as well as that names strlen
+/* 
+   Name:    readlink
+   Details: Returns the name inside the link file's data block, as well as that names strlen
 */
 int readlink(char* pathname, char name[]){
 
@@ -186,8 +186,8 @@ int readlink(char* pathname, char name[]){
 
 
 /*
- Name:    is_link
- Details: Returns 0 if mip is a link
+   Name:    is_link
+   Details: Returns 0 if mip is a link
 */
 int is_link(MINODE* mip){
   // CHECK IF mip IS A LINK ***************************

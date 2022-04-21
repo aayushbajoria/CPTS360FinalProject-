@@ -17,7 +17,7 @@ extern MINODE *iget(int dev, int ino);
 extern int search(MINODE *mip, char *name);
 extern MINODE *iget(int dev, int ino);
 
-
+int print_byte(char byte);
 
 
 extern int n;
@@ -25,8 +25,8 @@ extern char *name[64];
 extern int nblocks, ninodes, bmap, imap;
 
 /*
- Name:    is_dir
- Details: Returns 0 if mip is a directory
+  Name:    is_dir
+  Details: Returns 0 if mip is a directory
 */
 int is_dir(MINODE* mip){
   // CHECK IF mip IS A DIRECTORY ***************************
@@ -64,7 +64,8 @@ int is_dir(MINODE* mip){
 
 /*
   Name:    ialloc
-  Details: Goes the the inode bitmap block and allocates a new inode for use
+  Made by: KC
+  Details: Goes the the inode bitmap block andallocates a new inode for use
 */
 int ialloc(int dev)  // allocate an inode number from inode_bitmap
 {
@@ -86,31 +87,33 @@ int ialloc(int dev)  // allocate an inode number from inode_bitmap
 }
 
 /*
- Name:    balloc
- Details: Goes the the block bitmap block and allocates a new block in the disk for use.
+  Name:    balloc
+  Made by: Reagan
+  Details: Goes the the block bitmap block and allocates a new block in the disk for use.
 */
 int balloc(int dev){ //same as ialloc but for the block bitmap
 
-  int  i;
-  char buf[BLKSIZE];
+    int  i;
+    char buf[BLKSIZE];
 
-  // read inode_bitmap block
-  get_block(dev, bmap, buf);
+    // read inode_bitmap block
+    get_block(dev, bmap, buf);
 
-  for (i=0; i < nblocks; i++){
-    if (tst_bit(buf, i)==0){ //returns the bit value (if there is no bit there)
-        set_bit(buf, i);
-        put_block(dev, bmap, buf);
-        printf("allocated block = %d\n", i+1); // bits count from 0; ino from 1
-        return i+1;
+    for (i=0; i < nblocks; i++){
+        if (tst_bit(buf, i)==0){ //returns the bit value (if there is no bit there)
+            set_bit(buf, i);
+            put_block(dev, bmap, buf);
+            printf("allocated block = %d\n", i+1); // bits count from 0; ino from 1
+            return i+1;
+        }
     }
-  }
-
+    printf("balloc : could not allocate new block\nballoc failed\n");
     return 0;
 }
 
 /*
  Name:    test bit
+ Made by: Reagan
  Details: Returns the bit at that point in the block (1 or 0)
 */
 int tst_bit(char *buf, int bit){ // in Chapter 11.3.1
@@ -131,20 +134,34 @@ int tst_bit(char *buf, int bit){ // in Chapter 11.3.1
         8 != 0; returns 1
         ** Thus can only be 0 if there is not a 1 bit at byte i, bit j
     */
-    if(buf[i] & (1 << j) != 0){
+
+    if(buf[i] & (1 << j)){
         return 1;
     }
+    //printf("bit: %d\t", bit);
+    //print_byte(buf[i]);
+    //printf(" -> loc %d: ", j);
+    //printf("is 0\n");
     return 0;
 }
 
+int print_byte(char byte){
+    for(int i = 7; i >= 0; i--){
+        if(byte & (1 << i)){
+            printf("1");
+        }else{
+        printf("0");
+        }
+        
+    }
+}
 /*
- Name:    set bit
- Details: Sets the bit at that location in the block to a 1
+   Name:    set bit
+   Details: Sets the bit at that location in the block to a 1
 */
 int set_bit(char *buf, int bit){ // in Chapter 11.3.1
 
     int i,j;
-
     i = bit / 8; // what n byte in buf this bit belongs to (8 bits in a byte)
     j = bit % 8; // which nth bit this bit belongs to in the i'th byte.
 
@@ -159,15 +176,19 @@ int set_bit(char *buf, int bit){ // in Chapter 11.3.1
         
         Places a 1 bit in the 3rd bit of this byte (before: 0001 0100, after: 0001 1100)
     */
-
+    //printf("New byte:\t");
+    //print_byte(buf[i]);
+    //printf(" to ");
     buf[i] |= (1 << j); // set byte i's, j bit to 1
+    //print_byte(buf[i]);
+    //printf("\n");
 
     return 0;
 }
 
 /*
- Name:    creat_pathname
- Details: Takes a given pathname, and makes sure that it can be used to creat a new file.If all checks are made, my_creat is called.
+  Name:    creat_pathname
+  Details: Takes a given pathname, and makes sure that it can be used to creat a new file.If all checks are made, my_creat is called.
 */
 int creat_pathname(char* pathname){
 
@@ -241,8 +262,8 @@ int creat_pathname(char* pathname){
 }
 
 /*
- Name:    my_creat
- Details: Takes a parent directory and creates a new file with the given basename, puts in the parent directory
+  Name:    my_creat 
+  Details: Takes a parent directory and creates a new file with the given basename, puts in the parent directory
 */
 int my_creat(MINODE* pmip, char* _basename){
 
@@ -267,8 +288,8 @@ int my_creat(MINODE* pmip, char* _basename){
 }
 
 /*
- Name:    mkdir pathname
- Details: Determines if mkdir works for the given pathname. If there is no repeated basenames and the dirname is valid call my_mkdir
+  Name:    mkdir pathname
+  Details: Determines if mkdir works for the given pathname. If there is no repeated basenames and the dirname is valid call my_mkdir
 */
 int mkdir_pathname(char* pathname){
 
@@ -336,8 +357,8 @@ int mkdir_pathname(char* pathname){
 }
 
 /*
- Name:    my mkdir
- Details: The main mkdir function. Runs the mkdir command in the parent directory (pmip), initialzes the inodes and sets the dir entries
+   Name:    my mkdir
+   Details: The main mkdir function. Runs the mkdir command in the parent directory (pmip), initialzes the inodes and sets the dir entries
 */
 int my_mkdir(MINODE* pmip, char* _basename){
     int ino, blk;
@@ -367,10 +388,9 @@ int my_mkdir(MINODE* pmip, char* _basename){
     return 0;
 }
 
-/*
- Name:    init dir
- Details: Sets the basic dir entries for a new directory, that being the . and .. directory paths
-*/
+/*  Name:    init dir
+    Details: Sets the basic dir entries for a new directory, that being the . and .. directory paths
+    */
 int init_dir(int dblk, int pino, int ino){ //based on pg 332
 
     char buf[BLKSIZE];
@@ -402,8 +422,8 @@ int init_dir(int dblk, int pino, int ino){ //based on pg 332
 }
 
 /*
- Name:    enter name
- Details: Adds the new directory to the parent directory's data block. Trims the last dir entry, and either adds the new dir entry to the last data block or to a new one if there is no more room in the current data block
+  Name:    enter name
+  Details: Adds the new directory to the parent directory's data block. Trims the last dir entry, and either adds the new dir entry to the last data block or to a new one if there is no more room in the current data block
 */
 int enter_name(MINODE* pip, int ino, char* name){
 
@@ -490,8 +510,8 @@ int enter_name(MINODE* pip, int ino, char* name){
 }
 
 /*
- Name:    create inode
- Details: initilizes inode ip as a directory, bno the is the first data black in i_blocks. It is allocated before-hand
+   Name:    create inode
+   Details: initilizes inode ip as a directory, bno the is the first data black in i_blocks. It is allocated before-hand
 */
 int create_inode(INODE* ip, int bno){ //from book pg 334
   
@@ -529,3 +549,5 @@ int create_inode(INODE* ip, int bno){ //from book pg 334
 
    return 0;
 }
+
+

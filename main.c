@@ -1,5 +1,5 @@
 /****************************************************************************
-*                   KCW: mount root file system                             *
+*                   REAGAN: mount root file system                             *
 *****************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,12 +18,16 @@ int add_second_pathname(char line[]);
 extern MINODE *iget();
 extern int get_block(int dev, int blk, char *buf);
 extern void iput(MINODE *mip);
+int init_proc(int pid, PROC** _running);
 // *********************************************
 int quit(); //local function defintion
 
 MINODE minode[NMINODE];
 MINODE *root;
 PROC   proc[NPROC], *running;
+int nfd; // number of file descriptors for the running process
+OFT oft[NOFT];
+
 
 char gpath[128]; // global for tokenized components
 char *name[64];  // assume at most 64 components in pathname
@@ -33,23 +37,28 @@ int fd, dev;
 int nblocks, ninodes, bmap, imap, iblk;
 char line[128], cmd[32], pathname[128];
 
+// level-1 source files
 #include "cd_ls_pwd.c"
 #include "mkdir_creat.c"
 #include "rmdir.c"
 #include "link_unlink.c"
 #include "symlink.c"
 
+// level-2 source files
+#include "open_close_lseek.c"
+#include "read_cat.c"
+#include "write_cp.c"
 
 /*
- Name:    Init
- Details: Sets all global minode stuff and processes to 0.
+   Name:    Init
+   Details: Sets all global minode stuff and processes to 0.
 */
 int init()
 {
   int i, j;
   MINODE *mip;
   PROC   *p;
-
+  OFT* t;
   printf("init()\n");
 
   //initialize all minodes to 0 (no minodes)
@@ -67,12 +76,25 @@ int init()
     p->pid = i;
     p->uid = p->gid = 0;
     p->cwd = 0;
+
+    for(int g=0; g < NFD; g++){
+      p->fd[g] = 0;
+    }
+  }
+
+  //Initialize all open file tables to 0 (no ofts)
+  for(int i = 0; i < NOFT; i++){
+    t = &oft[i];
+    t->minodePtr = 0;
+    t->mode = 0;
+    t->offset = 0;
+    t->refCount = 0;
   }
 }
 
 /*
-	Name:    mount root
-	Details: load root INODE and set root pointer to it
+   Name:    mount root
+   Details: load root INODE and set root pointer to it
 */
 int mount_root()
 {  
@@ -80,16 +102,15 @@ int mount_root()
   root = iget(dev, 2); // 2nd inode is always root in ext2 file system
 }
 
-char *disk = "diskimage";
-/* 
-	Name:    Main
-	Details: Runs Project
+char *disk = "disk2"; // changed to 'disk2' for level 2
+/*
+  Name:    Main
+  Details: Runs Project
 */
 int main(int argc, char *argv[ ])
 {
   int ino;
   char buf[BLKSIZE];
-
   //opens disk for read and write
   printf("checking EXT2 FS ....");
   if ((fd = open(disk, O_RDWR)) < 0){
@@ -126,8 +147,7 @@ int main(int argc, char *argv[ ])
   printf("root refCount = %d\n", root->refCount);
 
   printf("creating P0 as running process\n");
-  running = &proc[0];           // P0 is initialized (super-user)
-  running->status = READY;      // Proc is ready
+  init_proc(0, &running);
   running->cwd = iget(dev, 2);  //ino 2 is root directory, so iget will make p0's cwd root directory
   printf("root refCount = %d\n", root->refCount);
 
@@ -173,14 +193,22 @@ int main(int argc, char *argv[ ])
     }
     else if (strcmp(cmd, "readlink")==0)
        call_readlink(pathname);
+    else if (strcmp(cmd, "pfd")==0)
+       pfd();
+    else if (strcmp(cmd, "cat")==0)
+       my_cat(pathname);
+    else if (strcmp(cmd, "cp")==0){
+       if(!add_second_pathname(line)) //0 if second pathname given
+        cp_pathname(pathname);
+    }
     else if (strcmp(cmd, "quit")==0)
        quit();
   }
 }
 
 /*
-	Name:    add_second_pathname
-	Details: If a given command requires a second parameter, adds it to pathname which originally only have the first parameter
+   Name:    add_second_pathname 
+   Details: If a given command requires a second parameter, adds it to pathname which originally only have the first parameter
 */
 int add_second_pathname(char line[]){
     int start_of_second_path;
@@ -202,8 +230,8 @@ int add_second_pathname(char line[]){
 }
 
 /*
-	Name:    quit
-	Details: Kills project, and deallocates dynamic variables
+  Name:    quit
+  Details: Kills project, and deallocates dynamic variables
 */
 int quit()
 {

@@ -5,10 +5,11 @@ extern int findino(MINODE *mip, u32 *myino);
 extern int getino(char *pathname);
 extern int findmyname(MINODE *parent, u32 myino, char myname[ ]);
 extern int is_dir(MINODE* mip);
+//***********************************************
 
 /*
-  Name:    cd
-  Details: changes working directory to thaty of pathnamwe
+   Name:    cd
+   Details: changes working directory to that of pathname
 */
 int cd(char *pathname)
 {
@@ -29,7 +30,7 @@ int cd(char *pathname)
   }
 
 
-  iput(running->cwd);  // one less reference to old cwd
+  iput(running->cwd);           // one less reference to old cwd
   running->cwd = mip; //finalize directory change
 
   return 0;
@@ -37,8 +38,8 @@ int cd(char *pathname)
 }
 
 /*
- Name:    ls_file
- Details: print ls line for given file
+   Name:    ls_file
+   Details: print ls line for given file
 */
 int ls_file(MINODE *mip, char *name)
 {
@@ -98,7 +99,7 @@ int ls_file(MINODE *mip, char *name)
   //print owner uid
   printf("   %d", uid);
 
-  //print group id
+  //print gruop id
   printf("   %d", gid);
 
   // print time in calendar form   
@@ -117,8 +118,8 @@ int ls_file(MINODE *mip, char *name)
 }
 
 /*
-  Name:    ls_dir
-  Details: list content of directory
+   Name:    ls_dir
+   Details: list content of directory
 */
 int ls_dir(MINODE *mip)
 {
@@ -152,8 +153,8 @@ int ls_dir(MINODE *mip)
 }
 
 /*
-  Name:    ls
-  Details: Runs the ls shell command
+   Name:    ls
+   Details: Runs the ls shell command
 */
 int ls(char* pathname)
 {
@@ -188,7 +189,7 @@ int ls(char* pathname)
 
 /*
    Name:    pwd
-   Details: Runs the pwd shell command. Recursivefunction that works its way up to the root printing the current dir along the way
+   Details: Runs the pwd shell command. Recursive function that works its way up to the root printing the current dir along the way
 */
 char *pwd(MINODE *wd)
 {

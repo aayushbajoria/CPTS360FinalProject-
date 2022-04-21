@@ -15,11 +15,14 @@
 extern MINODE minode[NMINODE]; //Array of MINODEs (used for processing)
 extern MINODE *root; //root minode (used in mount root) gets root dir
 extern PROC   proc[NPROC], *running;
+extern OFT oft[NOFT];
+
 
 extern char gpath[128];
 extern char *name[64];
 extern int n;
 
+extern int nfd;
 extern int fd, dev; //dev is device (disk) file descriptor
 extern int balloc(int dev); //same as ialloc but for the block bitmap
 extern int is_dir(MINODE* mip);
@@ -36,9 +39,9 @@ extern int nblocks, ninodes, bmap, imap, iblk;
 extern char line[128], cmd[32], pathname[128];
 
 /*
- Name:    Get Block
- Details: Dev is the disk, this function gets the block indicated by (int blk) and puts that block info into buf 
- */
+   Name:    Get Block
+   Details: Dev is the disk, this function gets the block indicated by (int blk) and puts that block info into buf 
+*/
 int get_block(int dev, int blk, char *buf)
 {
    lseek(dev, (long)blk*BLKSIZE, 0); // move dev to read at block nunber: (blk)
@@ -46,8 +49,8 @@ int get_block(int dev, int blk, char *buf)
 }   
 
 /*
- Name:    Put Block
- Details: Dev is the disk, this function gets the block indicated by (int blk) and overwrites it with buf
+   Name:    Put Block
+    Details: Dev is the disk, this function gets the block indicated by (int blk) and overwrites it with buf
 */
 int put_block(int dev, int blk, char *buf)
 {
@@ -56,8 +59,8 @@ int put_block(int dev, int blk, char *buf)
 }   
 
 /*
- Name:    tokenize
- Details: Seperates a pathname into its individual directory name components and puts it in the list name, N becomes the number of tokens.
+   Name:    tokenize
+   Details: Seperates a pathname into its individual directory name components and puts it in the list name, N becomes the number of tokens.
 */
 int tokenize(char *pathname)
 {
@@ -82,8 +85,219 @@ int tokenize(char *pathname)
 }
 
 /*
- Name:    iget
- Details: Creates new minode with specified inode number
+  Name:    init_proc
+  Details: Initialized a new proc at pid if it is free. If it is free assigns the running ptr and returns 0. Otherwise returns 1 and doesn't assign anything.
+*/
+int init_proc(int pid){
+   PROC* p;
+   
+   p = &proc[pid]; // get process at process id
+   if(p->status == FREE){
+      p->status = READY;
+      running = p;
+      nfd = 0; 
+      return 0;
+   }
+
+   return 1;
+}
+
+int add_indirect_entry(int dev, int idblk, int nblk){
+   char buf[BLKSIZE];
+
+   get_block(dev, idblk, buf);
+
+   int* ip = (int*)buf;
+
+   while(ip < (int*)(buf + BLKSIZE)){ // go to next empty entry
+      if(*ip == 0){ //an empty entry is found
+         *ip = nblk;
+         put_block(dev, idblk, buf); //set it and write back to disk
+         return 0;
+      }
+      ip++;
+   }
+
+   printf("add_indirect_entry : no room to allocate in indirect block\n");
+   printf("add_indirect_entry failed\n");
+   return -1;
+
+
+
+}
+
+int make_indirect_block(int dev){
+   int nblk;
+   char buf[BLKSIZE];
+   nblk = balloc(dev);
+
+   if(!nblk){ //if balloc failed
+      printf("make_indirect_block : could not allocate a new data block\n");
+      printf("make indirect block failed\n");
+      return -1;
+   }
+
+   get_block(dev, nblk, buf);
+
+   int* ip = (int*)buf;
+
+   while(ip < (int*)(buf + BLKSIZE)){ //set all indirect block entries to 0
+      *ip = 0;
+      ip++;
+   }
+
+   put_block(dev, nblk, buf);
+
+   return nblk;
+}
+
+
+/*
+   Name:    get indirect block
+   Details: Returns the block within the indirect disk block (inode.i_block[12])
+   MAJOR PRECONDITION: offset blk_number to exclude direct blocks
+*/
+int get_indirect_block(int dev, int idblk, int blk_number){
+
+   char buf[BLKSIZE];
+
+   if(blk_number > (BLKSIZE / 4)){ 
+      printf("get_indirect_block : exceeded indrect block limit\n");
+      printf("get_indirect_block unsuccessful\n");
+      return -1;
+   }
+   //printf("Getting blk...\n");
+   get_block(dev, idblk, buf); // get the indirect disk block
+
+   int* ip = (int*)buf; //int pointer
+
+   //printf("assigning ip...\n");
+   ip += blk_number; //go to location of indrect_block where the blk number is
+
+   return *ip;
+
+}
+
+/* Name:    get double indirect block
+   Details: Returns the block within the double indirect disk block (inode.i_block[13])
+   MAJOR PRECONDITION: offset blk_number to exclude direct blocks and indirect blocks
+*/
+int get_double_indirect_block(int dev, int didblk, int blk_number){
+
+   char buf[BLKSIZE];
+
+   int _diblk = blk_number / (BLKSIZE / 4); //this is what indirect block will have the data block we are looking for
+   int to_return; // this will be the true data block number
+
+   if(_diblk > (BLKSIZE / 4)){ // if the data block number is too big to be in the double indirect block (256 indirect blods)
+      printf("get_double_indirect_block : exceeded double indrect block limit\n");
+      printf("get_double_indirect_block unsuccessful\n");
+      return -1;
+   }
+
+   get_block(dev, didblk, buf); // get the double indirect disk block
+
+   int* ip = (int*)buf; //int pointer
+   ip += _diblk; //go to location of indrect_block where the blk number is
+
+   if(*ip == 0){ // indirect block entry is not assigned, stop here
+
+      return -2; // -2 means that indirect block entry not assigned
+   }
+
+   blk_number %= (BLKSIZE / 4); // will divide by 256 -> what blk within the determined indirect blk
+   // ip now points to an indirect block
+   to_return = get_indirect_block(dev, *ip, blk_number);
+
+
+   if(to_return == -1){
+      printf("get_double_indirect_block unsuccessful\n");
+      return -1;
+   }
+   //printf("returning ip...");
+   return to_return;
+
+}
+/*
+   Name:    oset
+   Details: Either allocates a new open file table or get's a preeixsting one to return
+*/
+OFT* oset(int dev, MINODE* mip, int mode, int* fd_loc){
+   OFT* table;
+
+   for(int i = 0; i < NOFT; i++){ //traverse tables
+      table = &oft[i]; // get next open file table
+
+      if(table->minodePtr == mip){ // if minode belongs to this tables minodePtr
+         if(table->mode == mode){
+            printf("oset : used pre-existing table\n");
+            table->refCount++;
+            *fd_loc = i;
+            return table;
+         }
+
+      }
+   }
+
+   for(int i = 0; i < NOFT; i++){ //traverse tables
+      table = &oft[i]; // get next open file table
+
+      if(table->refCount == 0){ // go to next unused table
+         table->minodePtr = mip;
+         table->mode = mode;
+         table->offset = 0;
+         table->refCount = 1;
+
+         int assigned = 0;
+         for(int f = 0; f < nfd; f++){
+            if(running->fd[f] == 0){ //if there is a free spot in proc's file descriptors list
+               running->fd[f] = table;
+               *fd_loc = f;
+               assigned = 1;
+               printf("oset : fd assigned to empty spot in fd list of proc\n");
+               break;
+   
+            }
+         }
+         
+         if(!assigned){ // if no fd spots were available -> expand list
+            nfd++;
+            if(nfd == NFD){ //if fd limit reached for this proc
+               printf("OH NO: FD limit reached for this PROC!\n");
+               *fd_loc = -1;
+            }else{ //expand list and add fd
+               printf("oset : expanded fd limit for this proc\n");
+               running->fd[nfd - 1] = table;
+               *fd_loc = nfd - 1;
+            }
+
+         }
+         return table;
+      }
+
+   }
+
+
+   printf("PANIC: No more Open File Tables!\n");
+
+   return 0;
+
+}
+
+/*
+   Name:    oget
+   Details: Returns the open file table at that proc's file descriptor index.
+*/
+OFT* oget(PROC* pp, int fd){
+   if(pp->fd[fd] == 0){
+      //printf("oget : %d does not indicate any open file table in proc\n", fd);
+      return 0;
+   }
+   return pp->fd[fd];
+}
+/*
+   Name:    iget
+   Details: Creates new minode with specified inode number
 */
 MINODE *iget(int dev, int ino)
 {
@@ -130,8 +344,8 @@ MINODE *iget(int dev, int ino)
 }
 
 /*
- Name:    iput
- Details: Writes mip's inode back to the disk and deallocates the minode
+   Name:    iput
+   Details: Writes mip's inode back to the disk and deallocates the minode
 */
 void iput(MINODE *mip)
 {
@@ -170,8 +384,8 @@ void iput(MINODE *mip)
 } 
 
 /*
- Name:    search
- Details: mip is a directory. Search looks through the contents of that directory, and if it has a file with the specified name, return that files inode.
+   Name:    search
+   Details: mip is a directory. Search looks through the contents of that directory, and if it has a file with the specified name, return that files inode.
 */
 int search(MINODE *mip, char *name)
 {
@@ -213,8 +427,8 @@ int search(MINODE *mip, char *name)
 }
 
 /*
- Name:    get ino
- Details: takes a pathname and returns the inode number for the last file in the path
+   Name:    get ino
+   Details: takes a pathname and returns the inode number for the last file in the path
 */
 int getino(char *pathname)
 {
@@ -264,10 +478,8 @@ int getino(char *pathname)
 
 // These 2 functions are needed for pwd()
 
-/*
- Name:    findmyname
- Details: Gets the name of the file with the given inode number. 
-*           The file must be a child of the parent directory.
+/*  Name:    findmyname
+    Details: Gets the name of the file with the given inode number. The file must be a child of the parent directory.
 */
 int findmyname(MINODE *parent, u32 myino, char myname[ ]) 
 {
@@ -305,9 +517,8 @@ int findmyname(MINODE *parent, u32 myino, char myname[ ])
 
 }
 
-/*
- Name:    findino
- Details: mip is a directory, myino is changed to the . directory inode number. The .. directory inode number is returned.
+/*  Name:    findino
+   Details: mip is a directory, myino is changed to the . directory inode number. The .. directory inode number is returned.
 */
 int findino(MINODE *mip, u32 *myino) // myino = i# of . return i# of ..
 {
