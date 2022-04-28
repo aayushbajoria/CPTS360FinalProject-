@@ -20,12 +20,15 @@ extern OFT oft[NOFT];
 
 extern char gpath[128];
 extern char *name[64];
+extern MOUNT mountTable[NMOUNT]; 
+
 extern int n;
 
 extern int nfd;
 extern int fd, dev; //dev is device (disk) file descriptor
 extern int balloc(int dev); //same as ialloc but for the block bitmap
 extern int is_dir(MINODE* mip);
+extern int has_permission(MINODE* mip, int _mode);
 
 
 
@@ -39,8 +42,8 @@ extern int nblocks, ninodes, bmap, imap, iblk;
 extern char line[128], cmd[32], pathname[128];
 
 /*
-   Name:    Get Block
-   Details: Dev is the disk, this function gets the block indicated by (int blk) and puts that block info into buf 
+  Name:    Get Block
+  Details: Dev is the disk, this function gets the block indicated by (int blk) and puts that block info into buf 
 */
 int get_block(int dev, int blk, char *buf)
 {
@@ -49,8 +52,8 @@ int get_block(int dev, int blk, char *buf)
 }   
 
 /*
-   Name:    Put Block
-    Details: Dev is the disk, this function gets the block indicated by (int blk) and overwrites it with buf
+  Name:    Put Block
+  Details: Dev is the disk, this function gets the block indicated by (int blk) and overwritesit with buf
 */
 int put_block(int dev, int blk, char *buf)
 {
@@ -59,14 +62,14 @@ int put_block(int dev, int blk, char *buf)
 }   
 
 /*
-   Name:    tokenize
-   Details: Seperates a pathname into its individual directory name components and puts it in the list name, N becomes the number of tokens.
+  Name:    tokenize
+  Details: Seperates a pathname into its individual directory name components and puts it in the list name, N becomes the number of tokens.
 */
 int tokenize(char *pathname)
 {
   int i;
   char *s;
-  printf("tokenize %s\n", pathname);
+  //printf("tokenize %s\n", pathname);
 
   strcpy(gpath, pathname);   // tokens are in global gpath[ ]
   n = 0;
@@ -79,28 +82,11 @@ int tokenize(char *pathname)
   }
   name[n] = 0;
   
-  for (i= 0; i<n; i++)
-    printf("%s  ", name[i]);
-  printf("\n");
+  //for (i= 0; i<n; i++)
+    //printf("%s  ", name[i]);
+  //printf("\n");
 }
 
-/*
-  Name:    init_proc
-  Details: Initialized a new proc at pid if it is free. If it is free assigns the running ptr and returns 0. Otherwise returns 1 and doesn't assign anything.
-*/
-int init_proc(int pid){
-   PROC* p;
-   
-   p = &proc[pid]; // get process at process id
-   if(p->status == FREE){
-      p->status = READY;
-      running = p;
-      nfd = 0; 
-      return 0;
-   }
-
-   return 1;
-}
 
 int add_indirect_entry(int dev, int idblk, int nblk){
    char buf[BLKSIZE];
@@ -153,9 +139,9 @@ int make_indirect_block(int dev){
 
 
 /*
-   Name:    get indirect block
-   Details: Returns the block within the indirect disk block (inode.i_block[12])
-   MAJOR PRECONDITION: offset blk_number to exclude direct blocks
+  Name:    get indirect block
+  Details: Returns the block within the indirect disk block (inode.i_block[12])
+  MAJOR PRECONDITION: offset blk_number to exclude direct blocks
 */
 int get_indirect_block(int dev, int idblk, int blk_number){
 
@@ -178,9 +164,10 @@ int get_indirect_block(int dev, int idblk, int blk_number){
 
 }
 
-/* Name:    get double indirect block
-   Details: Returns the block within the double indirect disk block (inode.i_block[13])
-   MAJOR PRECONDITION: offset blk_number to exclude direct blocks and indirect blocks
+/*
+  Name:    get double indirect block
+  Details: Returns the block within the double indirect disk block (inode.i_block[13])
+  MAJOR PRECONDITION: offset blk_number to exclude direct blocks and indirect blocks
 */
 int get_double_indirect_block(int dev, int didblk, int blk_number){
 
@@ -219,8 +206,8 @@ int get_double_indirect_block(int dev, int didblk, int blk_number){
 
 }
 /*
-   Name:    oset
-   Details: Either allocates a new open file table or get's a preeixsting one to return
+  Name:    oset
+  Details: Either allocates a new open file table or get's a preeixsting one to return
 */
 OFT* oset(int dev, MINODE* mip, int mode, int* fd_loc){
    OFT* table;
@@ -230,7 +217,7 @@ OFT* oset(int dev, MINODE* mip, int mode, int* fd_loc){
 
       if(table->minodePtr == mip){ // if minode belongs to this tables minodePtr
          if(table->mode == mode){
-            printf("oset : used pre-existing table\n");
+            //printf("oset : used pre-existing table\n");
             table->refCount++;
             *fd_loc = i;
             return table;
@@ -253,8 +240,8 @@ OFT* oset(int dev, MINODE* mip, int mode, int* fd_loc){
             if(running->fd[f] == 0){ //if there is a free spot in proc's file descriptors list
                running->fd[f] = table;
                *fd_loc = f;
-               assigned = 1;
-               printf("oset : fd assigned to empty spot in fd list of proc\n");
+               //assigned = 1;
+               //printf("oset : fd assigned to empty spot in fd list of proc\n");
                break;
    
             }
@@ -266,7 +253,7 @@ OFT* oset(int dev, MINODE* mip, int mode, int* fd_loc){
                printf("OH NO: FD limit reached for this PROC!\n");
                *fd_loc = -1;
             }else{ //expand list and add fd
-               printf("oset : expanded fd limit for this proc\n");
+               //printf("oset : expanded fd limit for this proc\n");
                running->fd[nfd - 1] = table;
                *fd_loc = nfd - 1;
             }
@@ -285,8 +272,8 @@ OFT* oset(int dev, MINODE* mip, int mode, int* fd_loc){
 }
 
 /*
-   Name:    oget
-   Details: Returns the open file table at that proc's file descriptor index.
+  Name:    oget
+  Details: Returns the open file table at that proc's file descriptor index.
 */
 OFT* oget(PROC* pp, int fd){
    if(pp->fd[fd] == 0){
@@ -296,8 +283,8 @@ OFT* oget(PROC* pp, int fd){
    return pp->fd[fd];
 }
 /*
-   Name:    iget
-   Details: Creates new minode with specified inode number
+ Name:    iget
+ Details: Creates new minode with specified inode number
 */
 MINODE *iget(int dev, int ino)
 {
@@ -307,15 +294,26 @@ MINODE *iget(int dev, int ino)
   int blk, offset;
   INODE *ip;
 
+  int table_loc;
+
   for (i=0; i<NMINODE; i++){
     mip = &minode[i];
     if (mip->refCount && mip->dev == dev && mip->ino == ino){ //if target minode is currently being used, its on this device, and it matches ino (inode number)
        mip->refCount++; //increment refCount by 1
        //printf("found [%d %d] as minode[%d] in core\n", dev, ino, i);
+      //printf("NEW mip: %d, dev %d, ref count: %d\n", mip->ino, mip->dev, mip->refCount);
+
        return mip; //return that minode
     }
   }
   //if the minode with desired ino was not found
+
+  for(int i = 0; i < NMOUNT; i++){ // determine where device info is on table for lookup
+     if(mountTable[i].dev == dev){
+        table_loc = i;
+        break;
+     }
+  }
 
   for (i=0; i<NMINODE; i++){
     mip = &minode[i];
@@ -326,7 +324,7 @@ MINODE *iget(int dev, int ino)
        mip->ino = ino;
 
        // get INODE of ino to buf    
-       blk    = (ino-1)/8 + iblk; // blk is set the Block that has the requested inode
+       blk    = (ino-1)/8 + mountTable[table_loc].iblk; // blk is set the Block that has the requested inode
        offset = (ino-1) % 8;      // offset is where on that Block the inode is found
        // NOTE: We divide by 8 because there can only be 8 inodes per block, we subtract 1 to get the beginning of the inode
 
@@ -336,6 +334,8 @@ MINODE *iget(int dev, int ino)
        ip = (INODE *)buf + offset;  // offset gets the exact location of inode
        // copy INODE to mp->INODE
        mip->INODE = *ip; //set new minode's inode pointer to the requested inode
+       //printf("NEW mip: %d, dev %d, ref count: %d\n", mip->ino, mip->dev, mip->refCount);
+
        return mip; //return new minode
     }
   }   
@@ -344,8 +344,8 @@ MINODE *iget(int dev, int ino)
 }
 
 /*
-   Name:    iput
-   Details: Writes mip's inode back to the disk and deallocates the minode
+  Name:    iput
+  Details: Writes mip's inode back to the disk and deallocates the minode
 */
 void iput(MINODE *mip)
 {
@@ -356,7 +356,11 @@ void iput(MINODE *mip)
  if (mip==0) 
      return;
 
+  // printf("iput mip: %d, dev %d, ref count: %d (to go down 1)\n", mip->ino, mip->dev, mip->refCount);
+
  mip->refCount--;
+
+ 
  
  if (mip->refCount > 0) return;
  if (!mip->dirty)       return;
@@ -369,23 +373,30 @@ void iput(MINODE *mip)
 
   Write YOUR code here to write INODE back to disk
  *****************************************************/
+   int table_loc = 0;
+   for(int g = 0; g < NMOUNT; g++){ //use table to refer to device info
+      if(mountTable[g].dev == dev){
+          table_loc = g;
+          break;
+      }
+   }
 
-   block = (mip->ino - 1) / 8 + iblk; //get the block number that contains this inode
+   block = (mip->ino - 1) / 8 + mountTable[table_loc].iblk; //get the block number that contains this inode
    offset = (mip->ino - 1) % 8; // which inode in the block this inode is
 
-   get_block(dev, block, buf); // start reading at inode block
+   get_block(mip->dev, block, buf); // start reading at inode block
    ip = (INODE*)buf + offset; // ip is the inode we are looking for
 
    *ip = mip->INODE; // overwrite inode
-   put_block(dev, block, buf); //write new changes back to block
+   put_block(mip->dev, block, buf); //write new changes back to block
 
    //midalloc
    
 } 
 
 /*
-   Name:    search
-   Details: mip is a directory. Search looks through the contents of that directory, and if it has a file with the specified name, return that files inode.
+  Name:    search
+  Details: mip is a directory. Search looks through the contents of that directory, and if it has a file with the specified name, return that files inode.
 */
 int search(MINODE *mip, char *name)
 {
@@ -399,7 +410,7 @@ int search(MINODE *mip, char *name)
       return -1;
    }
 
-   printf("search for %s in MINODE = [%d, %d]\n", name,mip->dev,mip->ino);
+   //printf("search for %s in MINODE = [%d, %d]\n", name,mip->dev,mip->ino);
    ip = &(mip->INODE);
 
    /*** search for name in mip's data blocks: ASSUME i_block[0] ONLY ***/
@@ -407,16 +418,16 @@ int search(MINODE *mip, char *name)
    get_block(dev, ip->i_block[0], sbuf);
    dp = (DIR *)sbuf;
    cp = sbuf;
-   printf("  ino   rlen  nlen  name\n");
+   //printf("  ino   rlen  nlen  name\n");
 
    // searches through data block to file dir entry with that name
    while (cp < sbuf + BLKSIZE){
      strncpy(temp, dp->name, dp->name_len);
      temp[dp->name_len] = 0;
-     printf("%4d  %4d  %4d    %s\n", 
-           dp->inode, dp->rec_len, dp->name_len, dp->name);
+     //printf("%4d  %4d  %4d    %s\n", 
+     //      dp->inode, dp->rec_len, dp->name_len, dp->name);
      if (strcmp(temp, name)==0){
-        printf("found %s : ino = %d\n", temp, dp->inode);
+        //printf("found %s : ino = %d\n", temp, dp->inode);
         return dp->inode;
      }
      cp += dp->rec_len;
@@ -427,35 +438,56 @@ int search(MINODE *mip, char *name)
 }
 
 /*
-   Name:    get ino
-   Details: takes a pathname and returns the inode number for the last file in the path
+  Name:    get ino
+  Details: takes a pathname and returns the inode number for the last file in the path
 */
 int getino(char *pathname)
 {
-  int i, ino, blk, offset;
+  int i, ino, blk, offset, on_root = 0;
   char buf[BLKSIZE];
   INODE *ip;
   MINODE *mip;
 
-  printf("getino: pathname=%s\n", pathname);
-  if (strcmp(pathname, "/")==0)
+  //printf("getino: pathname=%s\n", pathname);
+  if (strcmp(pathname, "/")==0){
+      dev = root->dev; //go back to root device
       return 2; //root is 2nd inode
+  }
   
   // starting mip = root OR CWD
-  if (pathname[0]=='/')
+  if (pathname[0]=='/'){
+     dev = root->dev; //go back to root device
      mip = root;
+  }
   else
      mip = running->cwd;
 
   mip->refCount++;         // because we iput(mip) later
   
   tokenize(pathname); //divide pathname into dir components
-
   for (i=0; i<n; i++){
-      printf("===========================================\n");
-      printf("getino: i=%d name[%d]=%s\n", i, i, name[i]);
+      //printf("\tworking on: %s\n", name[i]);
+
+      if(has_permission(mip, R) == -1){
+         iput(mip);
+         return -1;
+      }
+      if(has_permission(mip, X) == -1){
+         iput(mip);
+         return -1;
+      }
+
+      if(mip->ino == 2){ // if at root
+         on_root = 1;
+      }else{
+         on_root = 0;
+      }
+      
+      //printf("===========================================\n");
+      //printf("getino: i=%d name[%d]=%s\n", i, i, name[i]);
  
       ino = search(mip, name[i]); //gets the child for this parent directory with name
+
 
       if(ino == -1){ // search encountered an error (By Reagan)
          printf("getino : inode could not be identified in search\n");
@@ -464,12 +496,55 @@ int getino(char *pathname)
 
       if (ino==0){
          iput(mip);
-         printf("name %s does not exist\n", name[i]);
+         //printf("name %s does not exist\n", name[i]);
          return 0;
       }
 
       iput(mip);
       mip = iget(dev, ino); // create new minode for that child directory
+
+      if(mip->mounted  && (strcmp(name[i], "..") != 0)){ // IF THIS IS A MOUNT MINODE
+         int ndev = mip->mptr->dev;
+
+         iput(mip);  // put back current minode before switching devices
+         dev = ndev;
+
+         for(int i = 0; i < NMOUNT; i++){ // switch to mount device
+
+            if(mountTable[i].dev == ndev){
+               mip = iget(dev, 2);
+               ino = 2;
+               break;
+            }
+
+
+         }
+      }else if((mip->ino == 2) && (dev != root->dev) && (strcmp(name[i], "..") == 0) && (on_root)){ //if trying to .. on a mounted root
+         //printf("\t\tbackwards...\n");
+         for(int i = 0; i < NMOUNT; i++){ // switch to mount device
+
+            if(mountTable[i].dev == dev){ // go to mount table
+               iput(mip); // deallocate
+               mip = mountTable[i].mounted_inode;
+
+               dev = mip->dev; // change dev to the the one that is mounting this root
+               
+               MINODE* temp = running->cwd;
+               running->cwd = mip; // cwd is now the mediating dir between the mount points
+
+               ino = getino("..");
+               tokenize(pathname); // tokenized path was changed, reset change
+               //printf("\t\trecursion ends back at %s\n", name[i]);
+               mip = iget(dev, ino);
+               running->cwd = temp; // reset cwd
+
+               break;
+            }
+
+
+         }
+      }
+
    }
 
    iput(mip); //no more reference to inode needed
@@ -479,13 +554,18 @@ int getino(char *pathname)
 // These 2 functions are needed for pwd()
 
 /*  Name:    findmyname
-    Details: Gets the name of the file with the given inode number. The file must be a child of the parent directory.
+*  Details: Gets the name of the file with the given inode number. The file must be a child of the parent directory.
 */
 int findmyname(MINODE *parent, u32 myino, char myname[ ]) 
 {
   // WRITE YOUR code here
   // search parent's data block for myino; SAME as search() but by myino
   // copy its name STRING to myname[ ]
+  int old_dev = -1;
+  if(parent->dev != dev){ //if not on correct device
+      old_dev = dev;
+      dev = parent->dev;
+  }
 
   int i; 
   char *cp, c, sbuf[BLKSIZE], temp[256];
@@ -506,6 +586,10 @@ int findmyname(MINODE *parent, u32 myino, char myname[ ])
      if(dp->inode == myino){ //if dir's inode is myino -> this is the file we are looking for
          strncpy(myname, dp->name, dp->name_len); //get the name of file
          myname[dp->name_len] = 0;
+
+         if(old_dev != -1){ //if device was changed earlier, change back
+            dev = old_dev;
+         }
          return 0;
      }
      
@@ -517,8 +601,9 @@ int findmyname(MINODE *parent, u32 myino, char myname[ ])
 
 }
 
-/*  Name:    findino
-   Details: mip is a directory, myino is changed to the . directory inode number. The .. directory inode number is returned.
+/*  
+  Name:    findino
+  Details: mip is a directory, myino is changed to the . directory inode number. The .. directory inode number is returned.
 */
 int findino(MINODE *mip, u32 *myino) // myino = i# of . return i# of ..
 {
@@ -534,6 +619,7 @@ int findino(MINODE *mip, u32 *myino) // myino = i# of . return i# of ..
   int inos_found[2] = { 0 }; // keeps track of inodes found (parent, and my_ino)
   
   get_block(dev, mip->INODE.i_block[0], buf); //goes to the data block that holds this directory info
+
   dp = (DIR *)buf;  //buf can be read as ext2_dir_entry_2 entries
   cp = buf;         //will always point to the start of dir_entry
   
@@ -552,12 +638,22 @@ int findino(MINODE *mip, u32 *myino) // myino = i# of . return i# of ..
      if(strcmp(temp, "..") == 0){ //the dir is .. -> its parent_ino
       if(inos_found[0] == 0){ //if parent ino hasn't been found
             parent_ino = dp->inode; // return my_ino
+
             inos_found[0] = 1; // my_ino found;
       }
+     }
 
-      if(inos_found[0] == 1 && inos_found[1] == 1){ //found all inodes
+     if(inos_found[0] == 1 && inos_found[1] == 1){ //found all inodes
+
+         if((parent_ino == 2) && (*myino == 2) && (dev != root->dev)){ //if on a mounted root directory
+               for(int i = 0; i < NMOUNT; i++){
+                  if(mountTable[i].dev == dev){
+                     parent_ino = mountTable[i].mounted_inode->ino; // point back to mount directory
+
+                  }
+               }
+         }
          break;
-      }
      }
 
      cp += dp->rec_len; //rec_len is entry length in bytes. So, cp will now point to the byte after the end of the file.

@@ -4,12 +4,12 @@ extern int get_block(int dev, int blk, char *buf);
 extern int get_indirect_block(int dev, int idblk, int blk_number);
 extern int get_double_indirect_block(int dev, int didblk, int blk_number);
 
-/*
-   Name:    my_read
-   Details: Reads data in file data blocks into buf
+/*  
+ Name:    my_read
+ Details: Reads data in file data blocks into buf
 */
 int my_read(int fd, char* buf, int nbytes){
-
+    int odev = dev;
     OFT* table;
 
     int count = 0; // number of bytes read
@@ -51,6 +51,8 @@ int my_read(int fd, char* buf, int nbytes){
         return -1;
     }
 
+    dev = table->minodePtr->dev; //switch to the device that has the file to read
+
     while(nbytes && avil){ // while there are more bytes requested to be read, and there are bytes avialable 
         lbk = offset / BLKSIZE; //what i_block would the data be at
         start = offset % BLKSIZE; // remainder is the byte offset at that block
@@ -71,6 +73,7 @@ int my_read(int fd, char* buf, int nbytes){
 
             if(dblock == -1 || dblock == 0){
                 printf("my_read unsuccessful\n");
+                dev = odev;
                 return -1;
             }
 
@@ -82,6 +85,7 @@ int my_read(int fd, char* buf, int nbytes){
             if(double_indirect_block == 0){ // if no double indrect block
                 printf("my_read : could not find dobule indrect disk block\n");
                 printf("my_read unsuccessful\n");
+                dev = odev;
                 return -1;
             }
 
@@ -91,6 +95,7 @@ int my_read(int fd, char* buf, int nbytes){
 
             if(dblock == -1 || dblock == 0){
                 printf("my_read unsuccessful\n");
+                dev = odev;
                 return -1;
             }
             
@@ -102,6 +107,7 @@ int my_read(int fd, char* buf, int nbytes){
         if(dblock == 0){ // if i_blocks don't stretch that far
             printf("my_read : the requested i_block is unassigned\n");
             printf("my_read unsuccessful\n");
+            dev = odev;
             return -1;
         }
 
@@ -122,7 +128,6 @@ int my_read(int fd, char* buf, int nbytes){
         if(chunk > nbytes) { // if chunk is more than nbytes desired to be read
             chunk = nbytes;
         }
-
         memcpy(buf, cp, chunk);
         buf += chunk; cp += chunk;
 
@@ -136,28 +141,43 @@ int my_read(int fd, char* buf, int nbytes){
     } // while loop ends when all byte read limit reached or end of file
 
     table->offset = offset; // apply new offset to fd
+    dev = odev;
     return count;
 }
 
 /*
-   Name:    my_cat
-   Details: Prints file data to the screen
+  Name:    my_cat
+  Details: Prints file data to the screen
 */
 int my_cat(char* pathname){
-
+    int odev = dev;
     int fd;
     int size;
     char buf[BLKSIZE + 1];
-    int bytes_read, local_read;
+    int ino, bytes_read, local_read;
 
-    if(!getino(pathname)){ //if file does not exist
+    if(!(ino = getino(pathname))){ //if file does not exist
         printf("my_cat : %s does not exist\n", pathname);
         printf("my_cat unsuccessful\n");
+        dev = odev;
         return -1;
     }
+    
+    // check not trying to cat a directory
+    MINODE* mip;
+    mip = iget(dev, ino);
+    if(is_dir(mip) == 0){
+        printf("cat : %s is a directory, must be a REG file type\ncat unsuccessful\n", pathname);
+        iput(mip);
+        dev = odev;
+        return -1;
+    }
+    mip->refCount++;
+    iput(mip);
+    dev = odev;
 
     fd = my_open(pathname, R);
-    printf("descriptor: %d , mode: %d, dev: %d, ino: %d\n", fd, running->fd[fd]->mode, running->fd[fd]->minodePtr->dev, running->fd[fd]->minodePtr->ino);
+    //printf("descriptor: %d , mode: %d, dev: %d, ino: %d\n", fd, running->fd[fd]->mode, running->fd[fd]->minodePtr->dev, running->fd[fd]->minodePtr->ino);
 
 
     if(fd == -1){
@@ -168,7 +188,8 @@ int my_cat(char* pathname){
     size = oget(running, fd)->minodePtr->INODE.i_size;
     bytes_read = 0;
 
-    printf("[cat] start:\n\n"); 
+    //printf("[cat] start:\n\n"); 
+    printf("\n");
     while(bytes_read < size){
 
         local_read = my_read(fd, buf, BLKSIZE); // read as many bytes as possible in a data block
@@ -182,6 +203,8 @@ int my_cat(char* pathname){
         buf[local_read] = '\0';
         printf("%s", buf); // print file content to the screen
     }
+    printf("\n");
+
 
     my_close(fd);
 

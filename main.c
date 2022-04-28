@@ -1,5 +1,5 @@
 /****************************************************************************
-*                   REAGAN: mount root file system                             *
+*                    mount root file system                             *
 *****************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,6 +9,7 @@
 #include <libgen.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "type.h"
 
@@ -18,7 +19,7 @@ int add_second_pathname(char line[]);
 extern MINODE *iget();
 extern int get_block(int dev, int blk, char *buf);
 extern void iput(MINODE *mip);
-int init_proc(int pid, PROC** _running);
+extern int init_proc(int pid);
 // *********************************************
 int quit(); //local function defintion
 
@@ -27,6 +28,7 @@ MINODE *root;
 PROC   proc[NPROC], *running;
 int nfd; // number of file descriptors for the running process
 OFT oft[NOFT];
+MOUNT mountTable[NMOUNT];  // set all dev = 0 in init()
 
 
 char gpath[128]; // global for tokenized components
@@ -34,7 +36,7 @@ char *name[64];  // assume at most 64 components in pathname
 int   n;         // number of component strings
 
 int fd, dev;
-int nblocks, ninodes, bmap, imap, iblk;
+//int nblocks, ninodes, bmap, imap, iblk;
 char line[128], cmd[32], pathname[128];
 
 // level-1 source files
@@ -49,9 +51,13 @@ char line[128], cmd[32], pathname[128];
 #include "read_cat.c"
 #include "write_cp.c"
 
+// level-3 source files
+#include "mount_umount.c"
+#include "permissions.c"
+
 /*
-   Name:    Init
-   Details: Sets all global minode stuff and processes to 0.
+  Name:    Init
+  Details: Sets all global minode stuff and processesto 0.
 */
 int init()
 {
@@ -59,7 +65,7 @@ int init()
   MINODE *mip;
   PROC   *p;
   OFT* t;
-  printf("init()\n");
+  //printf("init()\n");
 
   //initialize all minodes to 0 (no minodes)
   for (i=0; i<NMINODE; i++){
@@ -69,6 +75,11 @@ int init()
     mip->mounted = 0;
     mip->mptr = 0;
   }
+  //Initialize all mtables to 0 (no tables)
+  for(i=0; i < NMOUNT; i++){
+     mountTable[i].dev = 0;
+  }
+
 
   //Initialize all procs to 0 (no procs)
   for (i=0; i<NPROC; i++){
@@ -92,35 +103,20 @@ int init()
   }
 }
 
+char *disk = 0; // Disk for mount_root
 /*
-   Name:    mount root
-   Details: load root INODE and set root pointer to it
+ Name:    mount root
+ Details: load root INODE and set root pointer to it
 */
 int mount_root()
 {  
-  printf("mount_root()\n");
-  root = iget(dev, 2); // 2nd inode is always root in ext2 file system
-}
+   //printf("mount_root()\n");
 
-char *disk = "disk2"; // changed to 'disk2' for level 2
-/*
-  Name:    Main
-  Details: Runs Project
-*/
-int main(int argc, char *argv[ ])
-{
-  int ino;
-  char buf[BLKSIZE];
-  //opens disk for read and write
-  printf("checking EXT2 FS ....");
-  if ((fd = open(disk, O_RDWR)) < 0){
-    printf("open %s failed\n", disk);
-    exit(1);
-  }
+   int iblk, imap, bmap, nblocks, ninodes;
+   char buf[BLKSIZE];
 
-  dev = fd;    // global dev same as this fd   
 
-  /********** read super block  ****************/
+    /********** read super block  ****************/
   get_block(dev, 1, buf); // BLOCK #1 is reserved for Superblock
   sp = (SUPER *)buf;      // sp (super-pointer) reads buf as a ext2_super_block
 
@@ -129,7 +125,7 @@ int main(int argc, char *argv[ ])
       printf("magic = %x is not an ext2 filesystem\n", sp->s_magic);
       exit(1);
   }     
-  printf("EXT2 FS OK\n");
+  printf("EXT2 FS OK... \n");
   ninodes = sp->s_inodes_count; //how many inodes are on the disk
   nblocks = sp->s_blocks_count; //how many blocks are on the disk
 
@@ -140,24 +136,77 @@ int main(int argc, char *argv[ ])
   bmap = gp->bg_block_bitmap; // bmap info received from group descriptor block
   imap = gp->bg_inode_bitmap; // imap info received from group descriptor block
   iblk = gp->bg_inode_table;  // iblk info received from group descriptor block
-  printf("bmp=%d imap=%d inode_start = %d\n", bmap, imap, iblk);
+  //printf("bmp=%d imap=%d inode_start = %d\n", bmap, imap, iblk);
+
+   mountTable[0].dev = dev;
+   mountTable[0].ninodes = ninodes;
+   mountTable[0].nblocks = nblocks;
+   mountTable[0].bmap = bmap;
+   mountTable[0].imap = imap;
+   mountTable[0].iblk = iblk;
+   strcpy(mountTable[0].name, disk);
+   strcpy(mountTable[0].mount_name, "/");
+   
+
+
+   root = iget(dev, 2); // 2nd inode is always root in ext2 file system
+}
+
+/*****************************************************
+*
+*  Name:    Main
+*  Made by: Reagan Kelley
+*  Details: Runs Project
+* 
+*****************************************************/
+int main(int argc, char *argv[ ])
+{
+
+
+
+   printf(EXT2-File System);
+
+
+                                           
+
+  int ino;
+
+  if(argc == 2){
+     printf("detected diskimage argument: %s...\n", argv[1]);
+     disk = argv[1];
+  }else{
+     printf("no diskimage argument detected...\nselecting default (disk 2)...\n");
+      disk = (char*)malloc(10);
+      strcpy(disk, "disk2");
+
+  }
+  //opens disk for read and write
+  printf("checking EXT2 FS ....\n");
+  if ((fd = open(disk, O_RDWR)) < 0){
+    printf("open %s failed\n", disk);
+    exit(1);
+  }
+
+  dev = fd;    // global dev same as this fd   
 
   init();       // initilize all globals (procs and minodes)
   mount_root(); // Sets root pointer to an minode that contains the root dir inode
-  printf("root refCount = %d\n", root->refCount);
+  //printf("root refCount = %d\n", root->refCount);
 
-  printf("creating P0 as running process\n");
-  init_proc(0, &running);
+  printf("creating P0 as running process...\n");
+  init_proc(0);
   running->cwd = iget(dev, 2);  //ino 2 is root directory, so iget will make p0's cwd root directory
-  printf("root refCount = %d\n", root->refCount);
+  //printf("root refCount = %d\n", root->refCount);
 
   // WRTIE code here to create P1 as a USER process
-  printf(" **************** Input Commands ***************\n");
-  printf("     ls   cd   pwd   mkdir   rmdir   creat \n");
-  printf("  link    unlink    symlink   readlink   quit\n");
-  printf(" ***********************************************\n");
+
+  printf("project ready to go...\n\n");
   while(1){ //shell loop
-    printf("input command : ");
+    //printf("dev: %d\n", dev);
+    printf("\033[0;31m"); //red
+    printf("input command > ");
+    printf("\033[0;37m"); //white
+
     fgets(line, 128, stdin);  //get command from user
     line[strlen(line)-1] = 0;
 
@@ -166,15 +215,17 @@ int main(int argc, char *argv[ ])
     pathname[0] = 0;
 
     sscanf(line, "%s %s", cmd, pathname);  //tokenize cmd and pathname from user input
-    printf("cmd=%s pathname=%s\n", cmd, pathname);
+    //printf("cmd=%s pathname=%s\n", cmd, pathname);
   
     //HANDLING COMMANDS
     if (strcmp(cmd, "ls")==0)
        ls(pathname);
     else if (strcmp(cmd, "cd")==0)
        cd(pathname);
-    else if (strcmp(cmd, "pwd")==0)
-       pwd(running->cwd);
+    else if (strcmp(cmd, "pwd")==0){
+       printf("\n");
+       pwd(running->cwd, 0);
+    }
     else if (strcmp(cmd, "mkdir")==0)
        mkdir_pathname(pathname);
     else if (strcmp(cmd, "rmdir")==0)
@@ -199,16 +250,37 @@ int main(int argc, char *argv[ ])
        my_cat(pathname);
     else if (strcmp(cmd, "cp")==0){
        if(!add_second_pathname(line)) //0 if second pathname given
-        cp_pathname(pathname);
+         cp_pathname(pathname);
+    }
+    else if (strcmp(cmd, "mount")==0){
+       if(strlen(pathname) == 0){ // if 0 argument or 2 arguments run mount
+         my_mount(pathname);  
+
+       }else{
+       if(!add_second_pathname(line)) //0 if second pathname given
+         my_mount(pathname);
+       }
+    }
+    else if (strcmp(cmd, "umount")==0)
+       my_umount(pathname);
+    else if (strcmp(cmd, "proc")==0)
+       make_proc(pathname);
+    else if (strcmp(cmd, "help")==0){
+         printf(" **************** Input Commands ***************\n");
+         printf("     ls   cd   pwd   mkdir   rmdir   creat \n");
+         printf("  link    unlink    symlink   readlink   quit\n");
+         printf(" ***********************************************\n");
     }
     else if (strcmp(cmd, "quit")==0)
        quit();
+   else
+     printf("Invalid command ... enter 'help' to see commands\n");
   }
 }
 
 /*
-   Name:    add_second_pathname 
-   Details: If a given command requires a second parameter, adds it to pathname which originally only have the first parameter
+  Name:    add_second_pathname
+  Details: If a given command requires a second parameter, adds it to pathname which originally only have the first parameter
 */
 int add_second_pathname(char line[]){
     int start_of_second_path;

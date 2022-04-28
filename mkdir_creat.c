@@ -56,30 +56,42 @@ int is_dir(MINODE* mip){
     //printf("ls: Can't ls a non-directory.\n");
     iput(mip); //derefrence useless minode to ref file
     return -1;
+  }else if(strcmp(mode_bits + 12, "0010") == 0){ // 0100 -> is a DIR,  
+    return 0;
   }
   //************************************************************
 
-  return 0;
+    printf("is_dir : file type unknown!\n");
+  iput(mip); //derefrence useless minode to ref file
+  return -1;
 }
 
 /*
   Name:    ialloc
-  Made by: KC
-  Details: Goes the the inode bitmap block andallocates a new inode for use
+  Details: Goes the the inode bitmap block and allocates a new inode for use
 */
 int ialloc(int dev)  // allocate an inode number from inode_bitmap
 {
-  int  i;
+  int  i, table_loc = 0;
   char buf[BLKSIZE];
 
-  // read inode_bitmap block
-  get_block(dev, imap, buf);
+   for(int g = 0; g < NMOUNT; g++){ //use table to refer to device info
+      if(mountTable[g].dev == dev){
+          table_loc = g;
+          break;
+      }
+  }
 
-  for (i=0; i < ninodes; i++){
+  // read inode_bitmap block
+  get_block(dev, mountTable[table_loc].imap, buf);
+
+
+
+  for (i=0; i < mountTable[table_loc].ninodes; i++){
     if (tst_bit(buf, i)==0){ //returns the bit value (if there is no bit there)
         set_bit(buf, i);
-        put_block(dev, imap, buf);
-        printf("allocated ino = %d\n", i+1); // bits count from 0; ino from 1
+        put_block(dev, mountTable[table_loc].imap, buf);
+        //printf("allocated ino = %d\n", i+1); // bits count from 0; ino from 1
         return i+1;
     }
   }
@@ -88,22 +100,28 @@ int ialloc(int dev)  // allocate an inode number from inode_bitmap
 
 /*
   Name:    balloc
-  Made by: Reagan
-  Details: Goes the the block bitmap block and allocates a new block in the disk for use.
+*  Details: Goes the the block bitmap block and allocates a new block in the disk for use.
 */
 int balloc(int dev){ //same as ialloc but for the block bitmap
 
-    int  i;
+    int  i, table_loc = 0;
     char buf[BLKSIZE];
 
-    // read inode_bitmap block
-    get_block(dev, bmap, buf);
+    for(int g = 0; g < NMOUNT; g++){ //use table to refer to device info
+      if(mountTable[g].dev == dev){
+          table_loc = g;
+          break;
+      }
+  }
 
-    for (i=0; i < nblocks; i++){
+    // read inode_bitmap block
+    get_block(dev, mountTable[table_loc].bmap, buf);
+
+    for (i=0; i < mountTable[table_loc].nblocks; i++){
         if (tst_bit(buf, i)==0){ //returns the bit value (if there is no bit there)
             set_bit(buf, i);
-            put_block(dev, bmap, buf);
-            printf("allocated block = %d\n", i+1); // bits count from 0; ino from 1
+            put_block(dev, mountTable[table_loc].bmap, buf);
+            //printf("allocated block = %d\n", i+1); // bits count from 0; ino from 1
             return i+1;
         }
     }
@@ -112,9 +130,8 @@ int balloc(int dev){ //same as ialloc but for the block bitmap
 }
 
 /*
- Name:    test bit
- Made by: Reagan
- Details: Returns the bit at that point in the block (1 or 0)
+  Name:    test bit
+  Details: Returns the bit at that point in the block (1 or 0)
 */
 int tst_bit(char *buf, int bit){ // in Chapter 11.3.1
 
@@ -156,8 +173,8 @@ int print_byte(char byte){
     }
 }
 /*
-   Name:    set bit
-   Details: Sets the bit at that location in the block to a 1
+  Name:    set bit
+  Details: Sets the bit at that location in the block to a 1
 */
 int set_bit(char *buf, int bit){ // in Chapter 11.3.1
 
@@ -188,10 +205,12 @@ int set_bit(char *buf, int bit){ // in Chapter 11.3.1
 
 /*
   Name:    creat_pathname
-  Details: Takes a given pathname, and makes sure that it can be used to creat a new file.If all checks are made, my_creat is called.
+  Made by: Reagan Kelley
+  Details: Takes a given pathname, and makes sure that it can be used to creat a new file. If all checks are made, my_creat is called.
 */
 int creat_pathname(char* pathname){
 
+    int odev = dev; // keep track of original dev
     //divide pathname into dirname and basename
     int from_cwd, pino;
     char dirname[128], _basename[128], temp[255];
@@ -200,20 +219,27 @@ int creat_pathname(char* pathname){
 
     if(getino(pathname) > 0){ //if given pathname already exists
         printf("creat_pathname : %s already exists\ncreat unsuccessful\n", pathname);
+        dev = odev; //reset back to original dev
         return -1;
     }
 
+    dev = odev; //reset back to original dev for second check
     if(getino(pathname) == -1){ //if second pathname is invalid
         printf("creat_pathname: %s is not a valid pathname\ncreat unsuccessful\n", pathname);
+        dev = odev; //reset back to original dev
         return -1;
 
     }
+
 
     if(strlen(pathname) == 0 || (strlen(pathname) == 1 && pathname[0] == '/')){ //if no pathname given or pathname is '/'
+        dev = odev; //reset back to original dev
 
         return -1;
     }
+
     tokenize(pathname);
+
     
     //determine to start at root or cwd
     if(pathname[0] == '/'){
@@ -234,13 +260,16 @@ int creat_pathname(char* pathname){
 
     strcpy(_basename, name[n - 1]); //get the _basename from path
 
-    printf("dirname: %s\nbasename: %s\n", dirname, _basename);
+   // printf("dirname: %s\nbasename: %s\n", dirname, _basename);
 
+    dev = odev; // reset to correctly get pino
     if(strlen(dirname)){ //if a dirname was given
         pino = getino(dirname); //get the inode number for the parent directory
 
         if(!pino){ //dirname does not exist
             printf("creat unsuccessful\n");
+            dev = odev; //reset back to original dev
+
             return -1;
         }
 
@@ -252,17 +281,41 @@ int creat_pathname(char* pathname){
 
     if(strlen(dirname) && is_dir(pmip) != 0){ //pmip is not a directory (only check if not cwd)
         printf("dirname is not a directory\ncreat unsuccessful\n");
+        iput(pmip);
+        dev = odev; //reset back to original dev
+
         return -1;
+    }
+
+    if(has_permission(pmip, R) == -1){
+      iput(pmip);
+      dev = odev; //reset back to orignal dev
+      return -1;
+    }
+    if(has_permission(pmip, W) == -1){
+      iput(pmip);
+      dev = odev; //reset back to orignal dev
+      return -1;
+    }
+    if(has_permission(pmip, X) == -1){
+      iput(pmip);
+      dev = odev; //reset back to orignal dev
+      return -1;
     }
     
     //all checks made, safe to creat
 
+    int success = my_creat(pmip, _basename);
 
-    return my_creat(pmip, _basename);
+    iput(pmip);
+    dev = odev; //reset back to original dev
+
+    return success;
+
 }
 
 /*
-  Name:    my_creat 
+  Name:    my_creat
   Details: Takes a parent directory and creates a new file with the given basename, puts in the parent directory
 */
 int my_creat(MINODE* pmip, char* _basename){
@@ -288,10 +341,11 @@ int my_creat(MINODE* pmip, char* _basename){
 }
 
 /*
-  Name:    mkdir pathname
-  Details: Determines if mkdir works for the given pathname. If there is no repeated basenames and the dirname is valid call my_mkdir
+ Name:    mkdir pathname
+Details: Determines if mkdir works for the given pathname. If there is no repeated basenames and the dirname is valid call my_mkdir
 */
 int mkdir_pathname(char* pathname){
+    int odev = dev; // keep track of original device in case of pathname swtiches devices
 
     //divide pathname into dirname and basename
     int from_cwd, pino;
@@ -323,13 +377,15 @@ int mkdir_pathname(char* pathname){
 
     strcpy(_basename, name[n - 1]); //get the _basename from path
 
-    printf("dirname: %s\nbasename: %s\n", dirname, _basename);
+    //printf("dirname: %s\nbasename: %s\n", dirname, _basename);
 
     if(strlen(dirname)){ //if a dirname was given
         pino = getino(dirname); //get the inode number for the parent directory
 
         if(!pino){ //dirname does not exist
             printf("mkdir unsuccessful\n");
+            dev = odev; //reset back to original dev
+
             return -1;
         }
 
@@ -340,27 +396,50 @@ int mkdir_pathname(char* pathname){
     }
     if(strlen(dirname) && is_dir(pmip) != 0){ //pmip is not a directory (only check if not cwd)
         printf("dirname is not a directory\nmkdir unsuccessful\n");
+        dev = odev; //reset back to original dev
+
         return -1;
     }
 
-
+    if(has_permission(pmip, R) == -1){
+      iput(pmip);
+      dev = odev; //reset back to orignal dev
+      return -1;
+    }
+    if(has_permission(pmip, W) == -1){
+      iput(pmip);
+      dev = odev; //reset back to orignal dev
+      return -1;
+    }
+    if(has_permission(pmip, X) == -1){
+      iput(pmip);
+      dev = odev; //reset back to orignal dev
+      return -1;
+    }
 
     if(search(pmip, _basename)){ //if not 0 -> basename exists and can't mkdir
         printf("basename already exists\nmkdir unsuccessful\n");
+        iput(pmip);
+        dev = odev; //reset back to original dev
         return -1;
     }
 
     //all checks made, safe to mkdir
     
-    printf("mkdir dirname and basename safe, preparing mkdir ...\n");
-    return my_mkdir(pmip, _basename); 
+    //printf("mkdir dirname and basename safe, preparing mkdir ...\n");
+
+    int success = my_mkdir(pmip, _basename); 
+
+    dev = odev; //reset back to original dev
+    return success;
 }
 
 /*
-   Name:    my mkdir
-   Details: The main mkdir function. Runs the mkdir command in the parent directory (pmip), initialzes the inodes and sets the dir entries
+  Name:    my mkdir
+  Details: The main mkdir function. Runs the mkdir command in the parent directory (pmip), initialzes the inodes and sets the dir entries
 */
 int my_mkdir(MINODE* pmip, char* _basename){
+    //printf("mip ino: %d, dev = %d\n", pmip->ino, pmip->dev);
     int ino, blk;
     MINODE* mip;
     INODE inode;
@@ -388,9 +467,10 @@ int my_mkdir(MINODE* pmip, char* _basename){
     return 0;
 }
 
-/*  Name:    init dir
-    Details: Sets the basic dir entries for a new directory, that being the . and .. directory paths
-    */
+/* 
+ Name:    init dir
+  Details: Sets the basic dir entries for a new directory, that being the . and .. directory paths
+*/
 int init_dir(int dblk, int pino, int ino){ //based on pg 332
 
     char buf[BLKSIZE];
@@ -510,8 +590,8 @@ int enter_name(MINODE* pip, int ino, char* name){
 }
 
 /*
-   Name:    create inode
-   Details: initilizes inode ip as a directory, bno the is the first data black in i_blocks. It is allocated before-hand
+  Name:    create inode
+  Details: initilizes inode ip as a directory, bno the is the first data black in i_blocks. It is allocated before-hand
 */
 int create_inode(INODE* ip, int bno){ //from book pg 334
   

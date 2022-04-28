@@ -17,55 +17,70 @@ extern char *name[64];
 
 //Page 338: int idalloc(dev, ino) deallocate an inode (number)
 /*
-   Name:    idalloc
-   Details: Deallocates the inode at inode number (ino)
+  Name:    idalloc
+  Details: Deallocates the inode at inode number (ino)
 */
 int idalloc(int dev, int ino)
 {
-  int i;  
+  int i, table_loc;  
   char buf[BLKSIZE];
 
-  if (ino > ninodes){  
+  for(int g = 0; g < NMOUNT; g++){ //use table to refer to device info
+      if(mountTable[g].dev == dev){
+          table_loc = g;
+          break;
+      }
+  }
+
+  if (ino > mountTable[table_loc].ninodes){  
     printf("inumber %d out of range\n", ino);
     return -1;
   }
   
-  get_block(dev, imap, buf);  // get inode bitmap block into buf[]
+  get_block(dev, mountTable[table_loc].imap, buf);  // get inode bitmap block into buf[]
   
   clr_bit(buf, ino-1);        // clear bit ino-1 to 0
 
-  put_block(dev, imap, buf);  // write buf back
+  put_block(dev, mountTable[table_loc].imap, buf);  // write buf back
 
   return 0;
 }
 
 /*
-   Name:    bdalloc
-   Made by: Reagan Kelley
-   Details: Deallocates the block indicated by blk
+  Name:    bdalloc
+  Details: Deallocates the block indicated by blk
 */
 int bdalloc(int dev, int blk){
 
-    int i;  
+    int i, table_loc;
     char buf[BLKSIZE];
 
-    if (blk > nblocks){  
+
+    for(int g = 0; g < NMOUNT; g++){ //use table to refer to device info
+        if(mountTable[g].dev == dev){
+            table_loc = g;
+            break;
+        }
+    }
+
+
+    if (blk > mountTable[table_loc].nblocks){  
       printf("inumber %d out of range\n", blk);
       return -1;
     }
   
-    get_block(dev, bmap, buf);  // get block bitmap block into buf[]
+    get_block(dev, mountTable[table_loc].bmap, buf);  // get block bitmap block into buf[]
   
     clr_bit(buf, blk);        // clear block bit
 
-    put_block(dev, imap, buf);  // write buf back
+    put_block(dev, mountTable[table_loc].imap, buf);  // write buf back
 
     return 0;
 }
 
 /*
-   Name:    clr_bit
-   Details: Uses bitwise functions to take the bit (location in buf inidicated by int bit) to change it to 0.
+ Name:    clr_bit
+ Details: Uses bitwise functions to take the bit (location in buf inidicated by int bit) to change it to 0.
 */
 int clr_bit(char* buf, int bit){
   int i,j;
@@ -79,10 +94,11 @@ int clr_bit(char* buf, int bit){
 }
 
 /*
-   Name:    rmdir_pathname
-   Details: Checks if pathname leads an existing dir,and removes if from disk, but only if its empty
+  Name:    rmdir_pathname
+  Details: Checks if pathname leads an existing dir, and removes if from disk, but only if its empty
 */
 int rmdir_pathname(char* pathname){
+    int odev = dev; // keep track of original dev
     int ino, pino;
     MINODE* mip, *pmip;
 
@@ -97,14 +113,23 @@ int rmdir_pathname(char* pathname){
       printf("rmdir unsuccessful\n");
       return -1;
     }
-
     mip = iget(dev, ino);   // put inode in a new minode
 
     if(is_dir(mip) != 0){ //if mip is not a directory
         printf("rmdir pathname : %s is not a directory\n", name[n-1]);
         printf("rmdir unsuccessful\n");
+        iput(mip);
+        dev = odev; //reset back to orignal dev
+
         return -1;
     } 
+
+    if(has_permission(mip, OWNER_ONLY) == -1){
+      iput(mip);
+      dev = odev; //reset back to orignal dev
+      return -1;
+    }
+
 
     get_block(dev, mip->INODE.i_block[0], buf); //goes to the data block that holds the first few entries
     dp = (DIR *)buf;  //buf can be read as ext2_dir_entry_2 entries
@@ -116,6 +141,8 @@ int rmdir_pathname(char* pathname){
     if(dp->rec_len != BLKSIZE-12){ //if the .. directory does not span the data block, that means there are other dir entries
         printf("rmdir pathname : %s is not empty\n", name[n-1]);
         printf("rmdir unsuccessful\n");
+        dev = odev; //reset back to orignal dev
+
         return -1;
 
     }
@@ -128,6 +155,8 @@ int rmdir_pathname(char* pathname){
     findmyname(pmip, ino, fname); // get name of dir to remove
     if(rm_child(pmip, fname) != 0){ // remove child from parent directory, 0 means successful
       printf("rmdir unsuccessful\n");
+      iput(pmip); //write pmip inode back to disk
+      dev = odev; //reset back to orignal dev
       return -1;
     }         
 
@@ -139,14 +168,17 @@ int rmdir_pathname(char* pathname){
     bdalloc(dev, mip->INODE.i_block[0]); // deallocate the data block used by removed directory
     idalloc(dev, ino);                   // deallocate the inode used by removed directory
 
+    iput(mip);
+
+    dev = odev; //reset back to orignal dev
     return 0;
 
 
 }
 
 /*
-   Name:    rm_child
-   Details: Given an parent directory, fname is found in the dir_entries, and it is removed.
+  Name:    rm_child
+  Details: Given an parent directory, fname is found in the dir_entries, and it is removed.
 */
 int rm_child(MINODE* pmip, char* fname){
     
@@ -208,11 +240,11 @@ int rm_child(MINODE* pmip, char* fname){
 
           }else if(dp->rec_len == (buf + BLKSIZE) - cp){ // condition 2: dir entry is last in the data block
 
-            printf("before-last rec len: %d\nlast rec len: %d\n", ldp->rec_len, dp->rec_len);
+            //printf("before-last rec len: %d\nlast rec len: %d\n", ldp->rec_len, dp->rec_len);
             ldp->rec_len += dp->rec_len; //extend the last dir entry to the end of the block (this will stop the removed dir entry from being read)
             put_block(dev, inode.i_block[i], buf); //write back changes to the data block
 
-            printf("Condition 2 complete.\n");
+            //printf("Condition 2 complete.\n");
             return 0; //condition 2 complete
           
           }else{ //condition 3: dir entry is in the beginning or middle of the block
@@ -225,12 +257,12 @@ int rm_child(MINODE* pmip, char* fname){
               
 
             }
-            printf("Try memcpy\n");
+            //printf("Try memcpy\n");
             
             old_diff = ldp->rec_len; // keep track of how much space the old dir used to take in the block
 
             memcpy(ldp, lcp + ldp->rec_len, (buf + BLKSIZE) - (lcp + ldp->rec_len)); //move all block data left from the deleted dir's end
-            printf("Worked...\n");
+            //printf("Worked...\n");
 
             cp = lcp; //go back to starting location where old dir used to be
             dp = (DIR *)cp;
